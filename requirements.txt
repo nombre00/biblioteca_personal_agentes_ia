@@ -3,3 +3,5 @@ uvicorn[standard]
 sqlalchemy
 pymysql
 pydantic-settings
+langchain
+langchain-google-genai

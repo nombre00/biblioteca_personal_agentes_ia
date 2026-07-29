@@ -13,10 +13,9 @@ class Settings(BaseSettings):
     jwt_internal_secret: str
     jwt_algorithm: str = "HS256"
 
-    # GitHub Models
-    github_models_token: str
-    github_models_endpoint: str = "https://models.inference.ai.azure.com"
-    github_models_model: str = "gpt-4o-mini"
+    # Gemini
+    gemini_api_key: str
+    gemini_model: str = "gemini-2.0-flash"
 
     @property
     def database_url(self) -> str:
