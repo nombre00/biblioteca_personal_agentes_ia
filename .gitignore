@@ -1,0 +1,28 @@
+# Entorno virtual
+venv/
+env/
+.venv/
+
+# Variables de entorno (secretos: JWT, token de GitHub Models, credenciales BD)
+.env
+
+# Cache y bytecode de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Bases de datos locales (si en algún momento usas SQLite para pruebas)
+*.db
+*.sqlite3
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Distribución / empaquetado (por si en el futuro generas builds)
+build/
+dist/
+*.egg-info/
