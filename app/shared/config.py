@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # JWT interno (mismo secreto que Gateway y backend)
     jwt_internal_secret: str
-    jwt_algorithm: str = "HS256"
+    jwt_algorithm: str = "HS512"
 
     # Gemini
     gemini_api_key: str

@@ -5,3 +5,5 @@ pymysql
 pydantic-settings
 langchain
 langchain-google-genai
+PyJWT
+requests
