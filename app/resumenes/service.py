@@ -18,7 +18,7 @@ def obtener_resumen(db: Session, libro_id: int, datos: ResumenRequest) -> Resume
     if existente is not None:
         return existente
 
-    contexto_wikipedia = obtener_contexto(f"{datos.titulo_libro} {datos.nombre_autor} novel")
+    contexto_wikipedia = obtener_contexto(f"{datos.titulo_libro} {datos.nombre_autor}")
 
     prompt = construir_prompt_resumen(
         titulo_libro=datos.titulo_libro,
