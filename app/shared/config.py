@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     jwt_internal_secret: str
     jwt_algorithm: str = "HS512"
 
+    # Rutas a otros servicios
+    backend_java_url: str = "http://localhost:8082"
+
     # Gemini
     gemini_api_key: str
     gemini_model: str = "gemini-3.5-flash-lite"
