@@ -19,10 +19,11 @@ from datetime import date
 
 from app.shared.config import settings
 from app.shared.auth.jwt_generator import generar_jwt_interno
-from app.shared.llm.gemini_client import gemini_client
-from app.shared import internal_client, wikipedia_client
+from app.shared.llm import gemini_client
+from app.shared.auth import internal_client
+from app.shared import wikipedia_client
 
-from app.shared.google_books_client import google_books
+from app.shared import google_books_client
 from app.busqueda_libros.prompt import (
     construir_prompt_clasificar_autor,
     construir_prompt_matchear_genero,
@@ -59,7 +60,7 @@ MARGEN_ANIOS_AUTOR = 20
 def buscar_libros(request: BusquedaLibroRequest) -> list[LibroExternoResponse]:
     """Wrapper fino sobre el provider — mapea directo a LibroExternoResponse,
     los campos ya calzan uno a uno con lo que devuelve google_books.py."""
-    resultados_crudos = google_books.buscar_libros_externos(
+    resultados_crudos = google_books_client.buscar_libros_externos(
         request.query, request.max_results
     )
     return [LibroExternoResponse(**r) for r in resultados_crudos]
