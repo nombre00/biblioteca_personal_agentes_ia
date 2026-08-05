@@ -5,7 +5,7 @@ from datetime import date
 
 # ==========================================
 # 1. Esquemas para Búsqueda Externa (Google Books)
-# ==========================================
+# ========================================== 
 
 class BusquedaLibroRequest(BaseModel):
     """Esquema para recibir la consulta de búsqueda desde el frontend."""

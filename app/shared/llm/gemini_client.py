@@ -67,4 +67,4 @@ class GeminiClient:
         return "".join(partes)
 
 
-gemini_client = GeminiClient() 
+gemini_client = GeminiClient()  

@@ -1,7 +1,7 @@
 import requests
 
 from app.shared.auth.jwt_generator import generar_jwt_interno
-from app.shared.config import settings
+from app.shared.config import settings 
 
 HEADER_NAME = "X-Internal-Token"
 
