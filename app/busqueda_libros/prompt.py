@@ -6,7 +6,7 @@ def construir_prompt_clasificar_autor(
     Compara el nombre de un autor candidato (obtenido de Google Books) contra
     la lista de autores ya existentes en la biblioteca, para detectar si es la
     misma persona escrita de forma distinta (ej. transliteración, orden de
-    nombre/apellido distinto).
+    nombre/apellido distinto). 
 
     autores_existentes: lista de dicts con forma {"id": int, "nombre": str}.
 

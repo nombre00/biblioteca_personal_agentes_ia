@@ -14,6 +14,8 @@ excepciones de requests/Gemini se propaguen); un manejo más prolijo queda
 pendiente para más adelante, igual que en el resto de agentes-ia.
 """
 
+
+import logging
 import requests
 from datetime import date
 
@@ -52,6 +54,8 @@ from app.busqueda_libros.schema import (
 
 MARGEN_ANIOS_AUTOR = 20
 
+
+logger = logging.getLogger(__name__)
 
 # ==========================================
 # 1. Búsqueda (paso 1: /buscar)
@@ -223,11 +227,19 @@ def _construir_autor_nuevo(
 
 
 def _resolver_pais(uid: str, pais_candidato: str) -> PaisResolucion:
+    logger.warning(f"[DEBUG país] pais_candidato recibido: {pais_candidato!r}")
+
     paises_existentes = internal_client.obtener_paises(uid)
-    paises_bulk = [{"id": p["id"], "nombre": p["nombre"]} for p in paises_existentes]
+    paises_bulk = [
+        {"id": p["id"], "nombre": p["nombre"]}
+        for p in paises_existentes
+        if p["nombre"] != "PAIS_PENDIENTE"
+    ]
+    logger.warning(f"[DEBUG país] paises_bulk enviado a Gemini: {paises_bulk!r}")
 
     prompt = construir_prompt_matchear_pais(pais_candidato, paises_bulk)
     resultado = gemini_client.generar_json(prompt)
+    logger.warning(f"[DEBUG país] resultado crudo de Gemini: {resultado!r}")
 
     if resultado["resultado"] == "existente":
         return PaisResolucionExistente(
