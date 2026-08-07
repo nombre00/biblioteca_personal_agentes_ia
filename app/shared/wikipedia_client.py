@@ -1,4 +1,7 @@
+import logging
 import requests
+
+logger = logging.getLogger(__name__)
 
 WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/api.php"
 WIKIPEDIA_SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{titulo}"
@@ -10,6 +13,11 @@ PROP_FECHA_NACIMIENTO = "P569"
 PROP_FECHA_DEFUNCION = "P570"
 PROP_PAIS_CIUDADANIA = "P27"
 
+# Wikimedia exige un User-Agent identificable en su política de uso de API
+# (https://meta.wikimedia.org/wiki/User-Agent_policy). Sin esto, es común
+# recibir 403 de forma intermitente en vez de la respuesta esperada.
+HEADERS = {"User-Agent": "Biblioteca/1.0 (proyecto personal; contacto: spleo1988@gmail.com)"}
+
 
 def _buscar_titulo(query: str) -> str | None:
     params = {
@@ -19,7 +27,7 @@ def _buscar_titulo(query: str) -> str | None:
         "format": "json",
         "srlimit": 1,
     }
-    respuesta = requests.get(WIKIPEDIA_SEARCH_URL, params=params, timeout=5)
+    respuesta = requests.get(WIKIPEDIA_SEARCH_URL, params=params, headers=HEADERS, timeout=5)
     respuesta.raise_for_status()
     resultados = respuesta.json().get("query", {}).get("search", [])
 
@@ -31,7 +39,7 @@ def _buscar_titulo(query: str) -> str | None:
 
 def _obtener_extracto(titulo: str) -> str | None:
     url = WIKIPEDIA_SUMMARY_URL.format(titulo=titulo.replace(" ", "_"))
-    respuesta = requests.get(url, timeout=5)
+    respuesta = requests.get(url, headers=HEADERS, timeout=5)
 
     if respuesta.status_code != 200:
         return None
@@ -46,7 +54,8 @@ def obtener_contexto(query: str) -> str | None:
             return None
 
         return _obtener_extracto(titulo)
-    except requests.RequestException:
+    except requests.RequestException as e:
+        logger.error(f"Error consultando Wikipedia (contexto) para '{query}': {e}")
         return None
 
 
@@ -61,7 +70,7 @@ def _obtener_retrato(titulo: str) -> str | None:
     """Reutiliza el mismo endpoint de summary que _obtener_extracto, pero
     tomando la imagen en vez del texto."""
     url = WIKIPEDIA_SUMMARY_URL.format(titulo=titulo.replace(" ", "_"))
-    respuesta = requests.get(url, timeout=5)
+    respuesta = requests.get(url, headers=HEADERS, timeout=5)
 
     if respuesta.status_code != 200:
         return None
@@ -80,7 +89,7 @@ def _obtener_wikidata_id(titulo: str) -> str | None:
         "titles": titulo,
         "format": "json",
     }
-    respuesta = requests.get(WIKIPEDIA_PAGEPROPS_URL, params=params, timeout=5)
+    respuesta = requests.get(WIKIPEDIA_PAGEPROPS_URL, params=params, headers=HEADERS, timeout=5)
     respuesta.raise_for_status()
 
     paginas = respuesta.json().get("query", {}).get("pages", {})
@@ -142,7 +151,7 @@ def _obtener_label(qid: str, idioma: str = "en") -> str | None:
         "languages": idioma,
         "format": "json",
     }
-    respuesta = requests.get(WIKIDATA_URL, params=params, timeout=5)
+    respuesta = requests.get(WIKIDATA_URL, params=params, headers=HEADERS, timeout=5)
     respuesta.raise_for_status()
 
     entidad = respuesta.json().get("entities", {}).get(qid, {})
@@ -157,7 +166,7 @@ def _obtener_claims(qid: str) -> dict:
         "props": "claims",
         "format": "json",
     }
-    respuesta = requests.get(WIKIDATA_URL, params=params, timeout=5)
+    respuesta = requests.get(WIKIDATA_URL, params=params, headers=HEADERS, timeout=5)
     respuesta.raise_for_status()
 
     entidad = respuesta.json().get("entities", {}).get(qid, {})
@@ -245,5 +254,6 @@ def obtener_datos_estructurados(query: str) -> dict:
             "pais": pais,
         }
 
-    except requests.RequestException:
+    except requests.RequestException as e:
+        logger.error(f"Error consultando Wikipedia/Wikidata (datos estructurados) para '{query}': {e}")
         return resultado_vacio

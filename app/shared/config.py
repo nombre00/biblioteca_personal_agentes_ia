@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     gemini_api_key: str
     gemini_model: str = "gemini-3.5-flash-lite"
 
+    # Google Books
+    google_books_api_key: str
+
     @property
     def database_url(self) -> str:
         return f"mysql+pymysql://{self.db_username}:{self.db_password}@{self.db_url}"

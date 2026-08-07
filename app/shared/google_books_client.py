@@ -1,6 +1,8 @@
 import logging
 import requests
 
+from app.shared.config import settings
+
 logger = logging.getLogger(__name__)
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
@@ -14,6 +16,7 @@ def buscar_libros_externos(query: str, max_results: int = 20) -> list[dict]:
     params = {
         "q": query,
         "maxResults": max_results,
+        "key": settings.google_books_api_key,
     }
 
     try:

@@ -19,7 +19,7 @@ from datetime import date
 
 from app.shared.config import settings
 from app.shared.auth.jwt_generator import generar_jwt_interno
-from app.shared.llm import gemini_client
+from app.shared.llm.gemini_client import gemini_client
 from app.shared.auth import internal_client
 from app.shared import wikipedia_client
 
@@ -270,19 +270,36 @@ def _mapear_resolucion_genero(resultado: dict) -> GeneroResolucion:
 # 3. Importación (paso 3: /importar)
 # ==========================================
 
-def importar_libro(uid: str, request: ImportarLibroRequest) -> dict:
-    """Reenvía el payload final a Java.
+def _a_camel_case(texto: str) -> str:
+    partes = texto.split("_")
+    return partes[0] + "".join(p.capitalize() for p in partes[1:])
 
-    TODO: endpoint pendiente en Java (POST /api/libros/importar-externo,
-    ver sección 6 del contexto — falla con 404 hasta que se implemente ahí).
-    El código queda listo para cuando exista.
+
+def _convertir_claves_a_camel(obj):
     """
+    Convierte recursivamente las claves de un dict/list de snake_case a camelCase.
+    Java (Jackson) espera camelCase; nuestros schemas de Pydantic usan snake_case
+    por decisión propia (ver contexto_24). Esta conversión es puramente mecánica,
+    no requiere conocer los nombres de los campos, así que no se rompe si el
+    schema de importación cambia.
+    """
+    if isinstance(obj, dict):
+        return {_a_camel_case(k): _convertir_claves_a_camel(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_convertir_claves_a_camel(i) for i in obj]
+    return obj
+
+
+def importar_libro(uid: str, request: ImportarLibroRequest) -> dict:
+    """Reenvía el payload final a Java, convirtiendo snake_case -> camelCase."""
     url = f"{settings.backend_java_url}/api/libros/importar-externo"
     headers = {"X-Internal-Token": generar_jwt_interno(uid)}
 
+    payload = _convertir_claves_a_camel(request.model_dump(mode="json", exclude_none=True))
+
     respuesta = requests.post(
         url,
-        json=request.model_dump(exclude_none=True),
+        json=payload,
         headers=headers,
         timeout=10,
     )
