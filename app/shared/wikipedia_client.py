@@ -12,6 +12,7 @@ WIKIDATA_URL = "https://www.wikidata.org/w/api.php"
 PROP_FECHA_NACIMIENTO = "P569"
 PROP_FECHA_DEFUNCION = "P570"
 PROP_PAIS_CIUDADANIA = "P27"
+PROP_LENGUA_MATERNA = "P103"
 
 # Wikimedia exige un User-Agent identificable en su política de uso de API
 # (https://meta.wikimedia.org/wiki/User-Agent_policy). Sin esto, es común
@@ -61,7 +62,7 @@ def obtener_contexto(query: str) -> str | None:
 
 # ==========================================
 # Extensión: datos estructurados vía Wikidata
-# (fechas, país, retrato — para desambiguación
+# (fechas, país, idioma, retrato — para desambiguación
 # de autor y creación de autor nuevo)
 # ==========================================
 
@@ -142,8 +143,8 @@ def _parsear_fecha_wikidata(claim_valor: dict) -> tuple[str | None, int | None]:
 
 def _obtener_label(qid: str, idioma: str = "en") -> str | None:
     """Resuelve el nombre legible de un ítem de Wikidata a partir de su ID
-    (ej. 'Q159' -> 'Russia'). Se usa para el país de ciudadanía (P27), que
-    en el claim viene solo como ID."""
+    (ej. 'Q159' -> 'Russia'). Se usa para el país de ciudadanía (P27) y para
+    la lengua materna (P103), que en el claim vienen solo como ID."""
     params = {
         "action": "wbgetentities",
         "ids": qid,
@@ -187,7 +188,7 @@ def obtener_datos_estructurados(query: str) -> dict:
     """
     Busca el autor en Wikipedia y trae sus datos estructurados vía Wikidata:
     fechas de nacimiento/defunción (exactas o aproximadas según precisión),
-    país de ciudadanía, y retrato.
+    país de ciudadanía, lengua materna, y retrato.
 
     Devuelve un dict con esta forma (todos los campos pueden ser None si no
     se encontró información):
@@ -200,6 +201,13 @@ def obtener_datos_estructurados(query: str) -> dict:
         "pais": str | None,               # nombre tal cual lo da Wikidata (típicamente en inglés,
                                            # sin traducir acá — el matching semántico de país
                                            # ya resuelve el idioma)
+        "idioma": str | None,             # lengua materna (P103), mismo criterio que país:
+                                           # nombre tal cual lo da Wikidata, sin traducir acá.
+                                           # Si el autor no tiene P103 en Wikidata, queda en
+                                           # None a propósito (no hay fallback implícito acá —
+                                           # ese es el punto de este cambio: antes de esto, el
+                                           # llamador rellenaba con el idioma del libro, que no
+                                           # es lo mismo que el idioma del autor).
     }
 
     Si no se encuentra la página o no tiene ítem de Wikidata asociado,
@@ -213,6 +221,7 @@ def obtener_datos_estructurados(query: str) -> dict:
         "fecha_defuncion": None,
         "anio_defuncion_aprox": None,
         "pais": None,
+        "idioma": None,
     }
 
     try:
@@ -245,6 +254,13 @@ def obtener_datos_estructurados(query: str) -> dict:
             if qid_pais:
                 pais = _obtener_label(qid_pais)
 
+        idioma = None
+        valor_idioma = _extraer_valor_claim(claims, PROP_LENGUA_MATERNA)
+        if valor_idioma:
+            qid_idioma = valor_idioma.get("id")
+            if qid_idioma:
+                idioma = _obtener_label(qid_idioma)
+
         return {
             "retrato_url": retrato_url,
             "fecha_nacimiento": fecha_nacimiento,
@@ -252,6 +268,7 @@ def obtener_datos_estructurados(query: str) -> dict:
             "fecha_defuncion": fecha_defuncion,
             "anio_defuncion_aprox": anio_defuncion_aprox,
             "pais": pais,
+            "idioma": idioma,
         }
 
     except requests.RequestException as e:

@@ -4,8 +4,9 @@ externa vía Google Books (buscar -> resolver -> importar).
 
 - buscar_libros: wrapper fino sobre el provider de Google Books.
 - resolver_libro: el núcleo del entity resolution — filtro LLM de autor,
-  desambiguación por datos duros de Wikidata cuando corresponde, y matching
-  semántico de género/país.
+  desambiguación por datos duros de Wikidata cuando corresponde, matching
+  semántico de género/país, y mejora de portada/año de publicación vía
+  OpenLibrary.
 - importar_libro: reenvía el payload final a Java (endpoint pendiente del
   lado Java, ver contexto de sesión — esto queda listo para cuando exista).
 
@@ -24,6 +25,8 @@ from app.shared.auth.jwt_generator import generar_jwt_interno
 from app.shared.llm.gemini_client import gemini_client
 from app.shared.auth import internal_client
 from app.shared import wikipedia_client
+from app.shared import openLibrary_client
+
 
 from app.shared import google_books_client
 from app.busqueda_libros.prompt import (
@@ -75,22 +78,47 @@ def buscar_libros(request: BusquedaLibroRequest) -> list[LibroExternoResponse]:
 # ==========================================
 
 def resolver_libro(uid: str, request: ResolverLibroRequest) -> ResolverLibroResponse:
-    """Orquesta la resolución completa: autor (dos etapas si hace falta) y
-    géneros (uno a uno). País se resuelve solo como parte de la construcción
+    """Orquesta la resolución completa: autor (dos etapas si hace falta),
+    géneros (uno a uno), y mejora de portada/año de publicación original
+    vía OpenLibrary. País se resuelve solo como parte de la construcción
     de un autor nuevo, no tiene paso propio a este nivel."""
 
     autor_resolucion = _resolver_autor(uid, request)
     generos_resolucion = _resolver_generos(uid, request.categorias)
+    portada_url, anio_publicacion = _mejorar_datos_libro(request)
 
     return ResolverLibroResponse(
         titulo=request.titulo,
-        anio_publicacion=request.anio_publicacion,
+        anio_publicacion=anio_publicacion,
         descripcion=request.descripcion,
-        portada_url=request.portada_url,
+        portada_url=portada_url,
         isbn=request.isbn,
         autor=autor_resolucion,
         generos=generos_resolucion,
     )
+
+
+def _mejorar_datos_libro(request: ResolverLibroRequest) -> tuple[str | None, int | None]:
+    """Complementa portada y año de publicación con OpenLibrary, que separa
+    Work (obra original) de Edition (impresión específica) — a diferencia
+    de Google Books, que solo conoce la edición puntual que indexó.
+
+    Portada: si OpenLibrary no tiene una portada real para el ISBN, se
+    mantiene la de Google Books como mejor-que-nada (no hay forma cómoda
+    de "corregir a mano" una URL de imagen, así que algo es mejor que nada).
+
+    Año de publicación: si OpenLibrary no tiene first_publish_date del
+    Work, se deja en None a propósito — no se cae al año de la edición de
+    Google Books, que es justamente el dato incorrecto que se busca evitar.
+    El usuario lo completa a mano en confirmar-importar, mismo criterio que
+    ya se aplicó con el idioma del autor.
+    """
+    datos_openlibrary = openLibrary_client.obtener_datos_estructurados(request.isbn)
+
+    portada_url = datos_openlibrary["portada_url"] or request.portada_url
+    anio_publicacion = datos_openlibrary["anio_publicacion_original"]
+
+    return portada_url, anio_publicacion
 
 
 def _resolver_autor(uid: str, request: ResolverLibroRequest) -> AutorResolucion:
@@ -102,7 +130,7 @@ def _resolver_autor(uid: str, request: ResolverLibroRequest) -> AutorResolucion:
 
     if resultado["resultado"] == "nuevo":
         datos_wikidata = wikipedia_client.obtener_datos_estructurados(request.autor_nombre)
-        datos = _construir_autor_nuevo(uid, request.autor_nombre, request.idioma, datos_wikidata)
+        datos = _construir_autor_nuevo(uid, request.autor_nombre, datos_wikidata)
         return AutorResolucionNueva(datos=datos)
 
     autor_id = resultado["autor_id"]
@@ -143,9 +171,7 @@ def _desambiguar_autor(
     if coincide_nacimiento is True or coincide_defuncion is True:
         return AutorResolucionExistente(autor_id=autor_id, nombre=nombre_candidato)
 
-    datos_si_es_nuevo = _construir_autor_nuevo(
-        uid, request.autor_nombre, request.idioma, datos_wikidata
-    )
+    datos_si_es_nuevo = _construir_autor_nuevo(uid, request.autor_nombre, datos_wikidata)
     motivo = _construir_motivo_pendiente(coincide_nacimiento, coincide_defuncion)
 
     return AutorResolucionPendiente(
@@ -197,7 +223,7 @@ def _construir_motivo_pendiente(
 
 
 def _construir_autor_nuevo(
-    uid: str, nombre: str, idioma: str | None, datos_wikidata: dict
+    uid: str, nombre: str, datos_wikidata: dict
 ) -> AutorCreateSchema:
     pais_resolucion: PaisResolucion | None = None
     if datos_wikidata["pais"]:
@@ -216,7 +242,11 @@ def _construir_autor_nuevo(
 
     return AutorCreateSchema(
         nombre=nombre,
-        idioma=idioma,
+        # Idioma del autor (lengua materna, P103 de Wikidata) — no el idioma
+        # del libro (podía ser el idioma de la edición, no el del autor). Si
+        # Wikidata no tiene el dato, queda en None a propósito: el usuario
+        # lo completa a mano en confirmar-importar antes de importar.
+        idioma=datos_wikidata["idioma"],
         pais=pais_resolucion,
         retrato_url=datos_wikidata["retrato_url"],
         fecha_nacimiento=fecha_nacimiento,
