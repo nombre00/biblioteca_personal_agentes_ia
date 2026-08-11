@@ -37,6 +37,7 @@ from app.busqueda_libros.prompt import (
 from app.busqueda_libros.schema import (
     BusquedaLibroRequest,
     LibroExternoResponse,
+    BusquedaLibrosResponse,
     ResolverLibroRequest,
     ResolverLibroResponse,
     ImportarLibroRequest,
@@ -64,13 +65,16 @@ logger = logging.getLogger(__name__)
 # 1. Búsqueda (paso 1: /buscar)
 # ==========================================
 
-def buscar_libros(request: BusquedaLibroRequest) -> list[LibroExternoResponse]:
-    """Wrapper fino sobre el provider — mapea directo a LibroExternoResponse,
-    los campos ya calzan uno a uno con lo que devuelve google_books.py."""
-    resultados_crudos = google_books_client.buscar_libros_externos(
-        request.query, request.max_results
+def buscar_libros(request: BusquedaLibroRequest) -> BusquedaLibrosResponse:
+    """Wrapper fino sobre el provider — mapea los items directo a
+    LibroExternoResponse (los campos ya calzan uno a uno con lo que
+    devuelve google_books.py) y propaga total_items para que el frontend
+    calcule la paginación."""
+    resultado = google_books_client.buscar_libros_externos(
+        request.query, request.max_results, request.start_index
     )
-    return [LibroExternoResponse(**r) for r in resultados_crudos]
+    items = [LibroExternoResponse(**r) for r in resultado["items"]]
+    return BusquedaLibrosResponse(items=items, total_items=resultado["total_items"])
 
 
 # ==========================================

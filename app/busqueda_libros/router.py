@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from app.busqueda_libros import service
 from app.busqueda_libros.schema import (
     BusquedaLibroRequest,
-    LibroExternoResponse,
+    BusquedaLibrosResponse,
     ResolverLibroRequest,
     ResolverLibroResponse,
     ImportarLibroRequest,
@@ -13,7 +13,7 @@ from app.shared.auth.jwt_validator import validar_jwt_interno
 router = APIRouter(prefix="/busqueda-libros", tags=["busqueda-libros"])
 
 
-@router.post("/buscar", response_model=list[LibroExternoResponse])
+@router.post("/buscar", response_model=BusquedaLibrosResponse)
 def buscar_libros(
     datos: BusquedaLibroRequest,
     uid: str = Depends(validar_jwt_interno),

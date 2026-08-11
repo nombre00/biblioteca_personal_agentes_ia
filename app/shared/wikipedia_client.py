@@ -201,8 +201,10 @@ def obtener_datos_estructurados(query: str) -> dict:
         "pais": str | None,               # nombre tal cual lo da Wikidata (típicamente en inglés,
                                            # sin traducir acá — el matching semántico de país
                                            # ya resuelve el idioma)
-        "idioma": str | None,             # lengua materna (P103), mismo criterio que país:
-                                           # nombre tal cual lo da Wikidata, sin traducir acá.
+        "idioma": str | None,             # lengua materna (P103). A diferencia de país, acá el
+                                           # label se pide directo en español ("es") a Wikidata,
+                                           # porque no existe una segunda capa de matching semántico
+                                           # que normalice el idioma del texto como sí pasa con país.
                                            # Si el autor no tiene P103 en Wikidata, queda en
                                            # None a propósito (no hay fallback implícito acá —
                                            # ese es el punto de este cambio: antes de esto, el
@@ -259,7 +261,7 @@ def obtener_datos_estructurados(query: str) -> dict:
         if valor_idioma:
             qid_idioma = valor_idioma.get("id")
             if qid_idioma:
-                idioma = _obtener_label(qid_idioma)
+                idioma = _obtener_label(qid_idioma, idioma="es")
 
         return {
             "retrato_url": retrato_url,

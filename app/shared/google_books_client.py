@@ -1,5 +1,5 @@
 import logging
-import requests
+import requests 
 
 from app.shared.config import settings
 
@@ -8,14 +8,25 @@ logger = logging.getLogger(__name__)
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
 
 
-def buscar_libros_externos(query: str, max_results: int = 20) -> list[dict]:
+def buscar_libros_externos(query: str, max_results: int = 20, start_index: int = 0) -> dict:
     """
     Busca libros en la API pública de Google Books y extrae los campos
     útiles para mapear con nuestras entidades (Libro, Autor, Genero).
+
+    start_index es el offset de paginación que espera Google Books
+    (0-based): para la página N con tamaño de página P, el caller debe
+    pasar start_index = (N - 1) * P.
+
+    Devuelve un dict {"items": [...], "total_items": int} en vez de una
+    lista plana, porque el caller necesita el total para poder calcular
+    cuántas páginas hay disponibles (paginación clásica, no scroll
+    infinito). total_items es el total real que reporta Google Books
+    para la query completa, no la cantidad de items en esta página.
     """
     params = {
         "q": query,
         "maxResults": max_results,
+        "startIndex": start_index,
         "key": settings.google_books_api_key,
     }
 
@@ -25,9 +36,10 @@ def buscar_libros_externos(query: str, max_results: int = 20) -> list[dict]:
 
         data = respuesta.json()
         items = data.get("items", [])
+        total_items = data.get("totalItems", 0)
 
         if not items:
-            return []
+            return {"items": [], "total_items": total_items}
 
         resultados_limpios = []
         for item in items:
@@ -78,8 +90,8 @@ def buscar_libros_externos(query: str, max_results: int = 20) -> list[dict]:
             }
             resultados_limpios.append(libro_info)
 
-        return resultados_limpios
+        return {"items": resultados_limpios, "total_items": total_items}
 
     except requests.RequestException as e:
         logger.error(f"Error consultando Google Books API (query='{query}'): {e}")
-        return []
+        return {"items": [], "total_items": 0}

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Literal, Union
-from datetime import date
+from datetime import date 
 
 
 # ==========================================
@@ -11,6 +11,10 @@ class BusquedaLibroRequest(BaseModel):
     """Esquema para recibir la consulta de búsqueda desde el frontend."""
     query: str = Field(..., min_length=1, description="Título o autor a buscar")
     max_results: Optional[int] = Field(40, ge=1, le=40)
+    # Offset de paginación (0-based) que se reenvía tal cual a Google Books.
+    # El frontend lo calcula a partir del número de página que el usuario
+    # está viendo: start_index = (pagina - 1) * max_results.
+    start_index: Optional[int] = Field(0, ge=0)
 
 
 class LibroExternoResponse(BaseModel):
@@ -30,6 +34,15 @@ class LibroExternoResponse(BaseModel):
     descripcion: Optional[str] = ""
     portada_url: Optional[str] = ""
     isbn: Optional[str] = None
+
+
+class BusquedaLibrosResponse(BaseModel):
+    """Envoltorio de la respuesta de /buscar: la página actual de resultados
+    más el total real de resultados que reporta Google Books para la query
+    completa (no la cantidad de items en esta página). El frontend usa
+    total_items para calcular cuántas páginas hay disponibles."""
+    items: List[LibroExternoResponse]
+    total_items: int
 
 
 # ==========================================
