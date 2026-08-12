@@ -206,5 +206,13 @@ class ImportarLibroRequest(BaseModel):
     portada_url: Optional[str] = ""
     isbn: Optional[str] = None
     estado: str = "POR_LEER"
+    # Lectura personal — opcionales, el usuario los llena en
+    # confirmar-importar solo si ya leyó el libro que está importando.
+    # exclude_none=True en el service (importar_libro) hace que si vienen
+    # en None simplemente no se incluyan en el payload hacia Java, igual
+    # que el resto de campos opcionales de este schema.
+    anio_lectura: Optional[int] = None
+    fecha_inicio: Optional[date] = None
+    fecha_termino: Optional[date] = None
     autor: AutorImportSchema
     generos: List[GeneroImportSchema] = []
