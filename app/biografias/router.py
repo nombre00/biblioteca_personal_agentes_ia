@@ -16,4 +16,4 @@ def obtener_biografia(
     db: Session = Depends(get_db),
     uid: str = Depends(validar_jwt_interno),
 ):
-    return service.obtener_biografia(db, autor_id, datos)
+    return service.obtener_biografia(db, autor_id, datos) 

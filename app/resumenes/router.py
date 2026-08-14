@@ -16,4 +16,4 @@ def obtener_resumen(
     db: Session = Depends(get_db),
     uid: str = Depends(validar_jwt_interno),
 ):
-    return service.obtener_resumen(db, libro_id, datos)
+    return service.obtener_resumen(db, libro_id, datos) 

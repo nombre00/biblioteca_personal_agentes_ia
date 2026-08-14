@@ -9,9 +9,7 @@ from app.shared.database import Base, engine
 from app.biografias.model import BiografiaAutor
 from app.resumenes.model import ResumenLibro
 
-from app.biografias.router import router as biografias_router
-from app.resumenes.router import router as resumenes_router
-from app.busqueda_libros.router import router as busqueda_libros_router
+from app.router import router_ia
 
 app = FastAPI(title="agentes-ia")
 
@@ -19,9 +17,7 @@ app = FastAPI(title="agentes-ia")
 # No altera tablas ya existentes si el modelo cambia después (ver nota en contexto).
 Base.metadata.create_all(bind=engine)
 
-app.include_router(biografias_router)
-app.include_router(resumenes_router)
-app.include_router(busqueda_libros_router)
+app.include_router(router_ia)
 
 
 @app.get("/health")

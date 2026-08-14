@@ -34,4 +34,4 @@ def importar_libro(
     datos: ImportarLibroRequest,
     uid: str = Depends(validar_jwt_interno),
 ):
-    return service.importar_libro(uid, datos)
+    return service.importar_libro(uid, datos) 
