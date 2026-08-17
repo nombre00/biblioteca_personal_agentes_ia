@@ -1,5 +1,3 @@
-# app/main.py
-
 from fastapi import FastAPI
 
 from app.shared.database import Base, engine
@@ -8,6 +6,7 @@ from app.shared.database import Base, engine
 # en Base.metadata para que create_all() sepa qué tablas crear.
 from app.biografias.model import BiografiaAutor
 from app.resumenes.model import ResumenLibro
+from app.configuracion_prompt.model import ConfiguracionPrompt, LineaPrompt
 
 from app.router import router_ia
 

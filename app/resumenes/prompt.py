@@ -19,6 +19,6 @@ def construir_prompt_resumen(
         f"tal como aparecería en la contraportada de un libro — NO es un resumen capítulo a capítulo ni un relato del desarrollo completo de la trama. "
         f"Si la obra es de ficción (novela, cuento, teatro), no reveles el desenlace ni el final, ni anticipes cómo se resuelve el conflicto central. "
         f"Si es una obra de no ficción (ensayo, filosofía, historia), describe el tema y el enfoque general sin listar todas sus conclusiones o argumentos punto por punto. "
-        f"Extensión máxima: 2 párrafos. No incluyas títulos ni encabezados, solo el texto de la sinopsis."
+        f"Extensión máxima: 3 párrafos. No incluyas títulos ni encabezados, solo el texto de la sinopsis."
         f"{bloque_contexto}"
     )
