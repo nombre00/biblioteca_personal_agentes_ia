@@ -31,4 +31,4 @@ def construir_prompt_resumen(
         f"{segmento_configuracion} "
         f"No incluyas títulos ni encabezados, solo el texto de la sinopsis."
         f"{bloque_contexto}"
-    )
+    ) 

@@ -10,6 +10,7 @@ from app.shared.llm.gemini_client import gemini_client
 from app.shared.wikipedia_client import obtener_contexto
 
 
+
 def obtener_resumen(db: Session, libro_id: int, datos: ResumenRequest) -> ResumenLibro:
     """
     Lazy generation: si ya existe un resumen guardado para este libro, lo devuelve
@@ -43,4 +44,4 @@ def obtener_resumen(db: Session, libro_id: int, datos: ResumenRequest) -> Resume
         libro_id=libro_id,
         texto=texto_generado,
         modelo_usado=settings.gemini_model,
-    )
+    ) 

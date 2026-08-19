@@ -62,3 +62,27 @@ class ConfiguracionPromptResponse(BaseModel):
     fecha_creacion: datetime
     fecha_actualizacion: datetime
     lineas: list[LineaPromptResponse]
+
+class PruebaPromptRequest(BaseModel):
+    """Payload del panel de prueba: campos planos de ambas tareas mezclados
+    (todos opcionales aquí; qué campos son obligatorios según tipo_tarea se
+    valida en runtime en el service, no en el schema) más el borrador de
+    configuración a probar (sin persistir)."""
+
+    # Campos compartidos con BiografiaRequest / ResumenRequest
+    nombre_autor: str | None = None
+    nacionalidad: str | None = None
+    anio_nacimiento: int | None = None
+    anio_defuncion: int | None = None
+    titulo_libro: str | None = None
+    genero: str | None = None
+
+    # Borrador de configuración, mismo shape que ConfiguracionPromptCreate
+    limite_parrafos: int = Field(gt=0)
+    evitar_spoilers: bool | None = None
+    lineas: list[LineaPromptCreate]
+
+
+class PruebaPromptResponse(BaseModel):
+    prompt: str
+    texto_generado: str

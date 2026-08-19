@@ -6,6 +6,8 @@ from app.configuracion_prompt.schema import (
     ConfiguracionPromptCreate,
     ConfiguracionPromptResponse,
     ConfiguracionPromptUpdate,
+    PruebaPromptRequest,
+    PruebaPromptResponse,
 )
 from app.shared.auth.jwt_validator import validar_jwt_interno
 from app.shared.database import get_db
@@ -67,3 +69,11 @@ def activar(
     uid: str = Depends(validar_jwt_interno),
 ):
     return service.activar(db, configuracion_id) 
+
+@router.post("/{tipo_tarea}/probar", response_model=PruebaPromptResponse)
+def probar(
+    tipo_tarea: str,
+    datos: PruebaPromptRequest,
+    uid: str = Depends(validar_jwt_interno),
+):
+    return service.probar(tipo_tarea, datos)

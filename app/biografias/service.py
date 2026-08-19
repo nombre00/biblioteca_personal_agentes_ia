@@ -43,4 +43,4 @@ def obtener_biografia(db: Session, autor_id: int, datos: BiografiaRequest) -> Bi
         autor_id=autor_id,
         texto=texto_generado,
         modelo_usado=settings.gemini_model,
-    )
+    ) 

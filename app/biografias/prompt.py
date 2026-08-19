@@ -38,4 +38,4 @@ def construir_prompt_biografia(
         f"{segmento_configuracion} "
         f"No incluyas títulos ni encabezados, solo el texto de la biografía."
         f"{bloque_contexto}"
-    )
+    ) 
