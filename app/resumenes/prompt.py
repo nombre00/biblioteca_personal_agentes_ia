@@ -1,8 +1,15 @@
+# Versión 2 que ocupa parámetros de config.
+from app.shared.prompt_builder import construir_prompt_desde_configuracion
+
+
 def construir_prompt_resumen(
     titulo_libro: str,
     nombre_autor: str,
     genero: str | None,
     contexto_wikipedia: str | None,
+    lineas: list[str],
+    limite_parrafos: int,
+    evitar_spoilers: bool | None,
 ) -> str:
     contexto_genero = f" del género {genero}" if genero else ""
 
@@ -12,13 +19,16 @@ def construir_prompt_resumen(
         else "\n\nNo se encontró información de referencia externa; sé conservador y evita inventar detalles de la trama no verificables."
     )
 
+    segmento_configuracion = construir_prompt_desde_configuracion(
+        lineas=lineas,
+        limite_parrafos=limite_parrafos,
+        evitar_spoilers=evitar_spoilers,
+    )
+
     return (
         f"Escribe una sinopsis breve y objetiva del libro '{titulo_libro}', escrito por {nombre_autor}"
         f"{contexto_genero}, en español. "
-        f"Una sinopsis presenta la premisa, el escenario y los personajes o ideas centrales de la obra, "
-        f"tal como aparecería en la contraportada de un libro — NO es un resumen capítulo a capítulo ni un relato del desarrollo completo de la trama. "
-        f"Si la obra es de ficción (novela, cuento, teatro), no reveles el desenlace ni el final, ni anticipes cómo se resuelve el conflicto central. "
-        f"Si es una obra de no ficción (ensayo, filosofía, historia), describe el tema y el enfoque general sin listar todas sus conclusiones o argumentos punto por punto. "
-        f"Extensión máxima: 3 párrafos. No incluyas títulos ni encabezados, solo el texto de la sinopsis."
+        f"{segmento_configuracion} "
+        f"No incluyas títulos ni encabezados, solo el texto de la sinopsis."
         f"{bloque_contexto}"
     )

@@ -3,7 +3,7 @@ import re
 
 from langchain_google_genai import ChatGoogleGenerativeAI 
 
-from app.shared.config import settings
+from app.shared.config import settings 
 
 
 class GeminiClient:

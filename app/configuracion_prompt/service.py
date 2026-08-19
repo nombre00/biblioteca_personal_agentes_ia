@@ -108,4 +108,4 @@ def obtener_activa_o_default(db: Session, tipo_tarea: str) -> ConfiguracionPromp
             detail=f"No hay configuración default para la tarea '{tipo_tarea}'. "
             "Revisar que el seed se haya ejecutado.",
         )
-    return configuracion
+    return configuracion 

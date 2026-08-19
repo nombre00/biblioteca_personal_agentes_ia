@@ -66,4 +66,4 @@ def activar(
     db: Session = Depends(get_db),
     uid: str = Depends(validar_jwt_interno),
 ):
-    return service.activar(db, configuracion_id)
+    return service.activar(db, configuracion_id) 

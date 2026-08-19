@@ -1,9 +1,15 @@
+# Versión 2 que ocupa parámetros de config.
+from app.shared.prompt_builder import construir_prompt_desde_configuracion
+
+
 def construir_prompt_biografia(
     nombre_autor: str,
     nacionalidad: str | None,
     anio_nacimiento: int | None,
     anio_defuncion: int | None,
     contexto_wikipedia: str | None,
+    lineas: list[str],
+    limite_parrafos: int,
 ) -> str:
     contexto_vida = ""
     if anio_nacimiento:
@@ -20,10 +26,16 @@ def construir_prompt_biografia(
         else "\n\nNo se encontró información de referencia externa; sé conservador y evita inventar datos específicos no verificables."
     )
 
+    segmento_configuracion = construir_prompt_desde_configuracion(
+        lineas=lineas,
+        limite_parrafos=limite_parrafos,
+        evitar_spoilers=None,  # no aplica a biografía
+    )
+
     return (
         f"Escribe una biografía breve y objetiva del autor {nombre_autor}{contexto_vida}"
         f"{contexto_nacionalidad} en español. "
-        f"Enfócate en su trayectoria literaria, obras más relevantes y contexto histórico. "
-        f"Extensión máxima: 3 párrafos. No incluyas títulos ni encabezados, solo el texto de la biografía."
+        f"{segmento_configuracion} "
+        f"No incluyas títulos ni encabezados, solo el texto de la biografía."
         f"{bloque_contexto}"
     )
