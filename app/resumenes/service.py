@@ -45,3 +45,11 @@ def obtener_resumen(db: Session, libro_id: int, datos: ResumenRequest) -> Resume
         texto=texto_generado,
         modelo_usado=settings.gemini_model,
     ) 
+
+def buscar_guardado(db: Session, libro_id: int) -> ResumenLibro | None:
+    """
+    Devuelve el resumen ya guardado para este libro, o None si no existe.
+    A diferencia de obtener_resumen, NUNCA genera ni guarda nada — es de solo lectura,
+    pensado para el panel de comparación del frontend.
+    """
+    return repository.buscar_por_libro_id(db, libro_id)

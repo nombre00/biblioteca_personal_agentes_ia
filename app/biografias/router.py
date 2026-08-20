@@ -17,3 +17,11 @@ def obtener_biografia(
     uid: str = Depends(validar_jwt_interno),
 ):
     return service.obtener_biografia(db, autor_id, datos) 
+
+@router.get("/{autor_id}", response_model=BiografiaResponse | None)
+def buscar_biografia_guardada(
+    autor_id: int,
+    db: Session = Depends(get_db),
+    uid: str = Depends(validar_jwt_interno),
+):
+    return service.buscar_guardada(db, autor_id)

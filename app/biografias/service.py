@@ -44,3 +44,11 @@ def obtener_biografia(db: Session, autor_id: int, datos: BiografiaRequest) -> Bi
         texto=texto_generado,
         modelo_usado=settings.gemini_model,
     ) 
+
+def buscar_guardada(db: Session, autor_id: int) -> BiografiaAutor | None:
+    """
+    Devuelve la biografía ya guardada para este autor, o None si no existe.
+    A diferencia de obtener_biografia, NUNCA genera ni guarda nada — es de solo lectura,
+    pensado para el panel de comparación del frontend.
+    """
+    return repository.buscar_por_autor_id(db, autor_id)

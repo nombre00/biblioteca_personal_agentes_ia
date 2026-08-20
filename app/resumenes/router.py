@@ -17,3 +17,11 @@ def obtener_resumen(
     uid: str = Depends(validar_jwt_interno),
 ):
     return service.obtener_resumen(db, libro_id, datos) 
+
+@router.get("/{libro_id}", response_model=ResumenResponse | None)
+def buscar_resumen_guardado(
+    libro_id: int,
+    db: Session = Depends(get_db),
+    uid: str = Depends(validar_jwt_interno),
+):
+    return service.buscar_guardado(db, libro_id)
