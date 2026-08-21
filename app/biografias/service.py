@@ -52,3 +52,15 @@ def buscar_guardada(db: Session, autor_id: int) -> BiografiaAutor | None:
     pensado para el panel de comparación del frontend.
     """
     return repository.buscar_por_autor_id(db, autor_id)
+
+def adoptar(db: Session, autor_id: int, texto: str) -> BiografiaAutor:
+    """
+    Sobrescribe (o crea) la biografía guardada con un texto ya generado externamente
+    (vía /probar), sin volver a llamar a Wikipedia ni a Gemini.
+    """
+    return repository.guardar(
+        db,
+        autor_id=autor_id,
+        texto=texto,
+        modelo_usado=settings.gemini_model,
+    )

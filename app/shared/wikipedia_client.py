@@ -3,10 +3,17 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-WIKIPEDIA_SEARCH_URL = "https://en.wikipedia.org/w/api.php"
-WIKIPEDIA_SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{titulo}"
-WIKIPEDIA_PAGEPROPS_URL = "https://en.wikipedia.org/w/api.php"
+WIKIPEDIA_SEARCH_URL_TEMPLATE = "https://{idioma}.wikipedia.org/w/api.php"
+WIKIPEDIA_SUMMARY_URL_TEMPLATE = "https://{idioma}.wikipedia.org/api/rest_v1/page/summary/{titulo}"
+WIKIPEDIA_PAGEPROPS_URL_TEMPLATE = "https://{idioma}.wikipedia.org/w/api.php"
 WIKIDATA_URL = "https://www.wikidata.org/w/api.php"
+
+# Orden de idiomas a intentar al buscar un título. Se prueba primero
+# español (mejor cobertura para el catálogo típico de este proyecto:
+# clásicos traducidos, historia latinoamericana) y se cae a inglés
+# solo si no hay resultados — nunca se traduce el string de búsqueda,
+# se reintenta tal cual contra el otro dominio de Wikipedia.
+IDIOMAS_FALLBACK = ["es", "en"]
 
 # Propiedades de Wikidata que nos interesan
 PROP_FECHA_NACIMIENTO = "P569"
@@ -20,7 +27,8 @@ PROP_LENGUA_MATERNA = "P103"
 HEADERS = {"User-Agent": "Biblioteca/1.0 (proyecto personal; contacto: spleo1988@gmail.com)"}
 
 
-def _buscar_titulo(query: str) -> str | None:
+def _buscar_titulo(query: str, idioma: str = "es") -> str | None:
+    url = WIKIPEDIA_SEARCH_URL_TEMPLATE.format(idioma=idioma)
     params = {
         "action": "query",
         "list": "search",
@@ -28,33 +36,86 @@ def _buscar_titulo(query: str) -> str | None:
         "format": "json",
         "srlimit": 1,
     }
-    respuesta = requests.get(WIKIPEDIA_SEARCH_URL, params=params, headers=HEADERS, timeout=5)
+    logger.info(f"[wikipedia_client] _buscar_titulo -> idioma={idioma} query enviada: {query!r} | params: {params}")
+
+    respuesta = requests.get(url, params=params, headers=HEADERS, timeout=5)
+    logger.info(f"[wikipedia_client] _buscar_titulo -> status_code={respuesta.status_code} url_final={respuesta.url}")
+
     respuesta.raise_for_status()
-    resultados = respuesta.json().get("query", {}).get("search", [])
+    data = respuesta.json()
+    resultados = data.get("query", {}).get("search", [])
+    logger.info(f"[wikipedia_client] _buscar_titulo -> idioma={idioma} {len(resultados)} resultado(s) crudos: "
+                f"{[r.get('title') for r in resultados]}")
 
     if not resultados:
+        logger.warning(f"[wikipedia_client] _buscar_titulo -> SIN resultados para query={query!r} idioma={idioma}")
         return None
 
-    return resultados[0]["title"]
+    titulo_elegido = resultados[0]["title"]
+    logger.info(f"[wikipedia_client] _buscar_titulo -> título elegido: {titulo_elegido!r} "
+                f"(de query {query!r}, idioma={idioma})")
+    return titulo_elegido
 
 
-def _obtener_extracto(titulo: str) -> str | None:
-    url = WIKIPEDIA_SUMMARY_URL.format(titulo=titulo.replace(" ", "_"))
+def _buscar_titulo_con_fallback(query: str) -> tuple[str | None, str | None]:
+    """
+    Intenta resolver un título contra cada idioma de IDIOMAS_FALLBACK en
+    orden, sin traducir el query — solo reintenta el mismo string contra
+    el dominio de Wikipedia del siguiente idioma si el anterior no dio
+    resultados.
+
+    Devuelve (titulo, idioma) del primer idioma que encontró algo, o
+    (None, None) si ningún idioma de la lista encontró resultados.
+    """
+    for idioma in IDIOMAS_FALLBACK:
+        titulo = _buscar_titulo(query, idioma=idioma)
+        if titulo:
+            return titulo, idioma
+        logger.info(f"[wikipedia_client] _buscar_titulo_con_fallback -> "
+                    f"sin resultados en idioma={idioma}, probando siguiente")
+
+    logger.warning(f"[wikipedia_client] _buscar_titulo_con_fallback -> "
+                    f"SIN resultados en ningún idioma de {IDIOMAS_FALLBACK} para query={query!r}")
+    return None, None
+
+
+def _obtener_extracto(titulo: str, idioma: str = "es") -> str | None:
+    url = WIKIPEDIA_SUMMARY_URL_TEMPLATE.format(idioma=idioma, titulo=titulo.replace(" ", "_"))
+    logger.info(f"[wikipedia_client] _obtener_extracto -> GET {url}")
+
     respuesta = requests.get(url, headers=HEADERS, timeout=5)
+    logger.info(f"[wikipedia_client] _obtener_extracto -> status_code={respuesta.status_code}")
 
     if respuesta.status_code != 200:
+        logger.warning(f"[wikipedia_client] _obtener_extracto -> status != 200 para título={titulo!r} "
+                        f"idioma={idioma}, body={respuesta.text[:300]!r}")
         return None
 
-    return respuesta.json().get("extract")
+    data = respuesta.json()
+    extracto = data.get("extract")
+    logger.info(f"[wikipedia_client] _obtener_extracto -> extract presente={bool(extracto)} "
+                f"longitud={len(extracto) if extracto else 0} "
+                f"pageid={data.get('pageid')} type={data.get('type')}")
+
+    if not extracto:
+        logger.warning(f"[wikipedia_client] _obtener_extracto -> respuesta sin 'extract' para título={titulo!r} "
+                        f"idioma={idioma}, claves recibidas={list(data.keys())}")
+
+    return extracto
 
 
 def obtener_contexto(query: str) -> str | None:
+    logger.info(f"[wikipedia_client] obtener_contexto -> INICIO query={query!r}")
     try:
-        titulo = _buscar_titulo(query)
+        titulo, idioma = _buscar_titulo_con_fallback(query)
         if not titulo:
+            logger.warning(f"[wikipedia_client] obtener_contexto -> FIN sin título para query={query!r}")
             return None
 
-        return _obtener_extracto(titulo)
+        extracto = _obtener_extracto(titulo, idioma=idioma)
+        logger.info(f"[wikipedia_client] obtener_contexto -> FIN query={query!r} título={titulo!r} "
+                    f"idioma={idioma} resultado={'OK' if extracto else 'VACÍO'}")
+        return extracto
     except requests.RequestException as e:
         logger.error(f"Error consultando Wikipedia (contexto) para '{query}': {e}")
         return None
@@ -67,38 +128,49 @@ def obtener_contexto(query: str) -> str | None:
 # ==========================================
 
 
-def _obtener_retrato(titulo: str) -> str | None:
+def _obtener_retrato(titulo: str, idioma: str = "es") -> str | None:
     """Reutiliza el mismo endpoint de summary que _obtener_extracto, pero
     tomando la imagen en vez del texto."""
-    url = WIKIPEDIA_SUMMARY_URL.format(titulo=titulo.replace(" ", "_"))
+    url = WIKIPEDIA_SUMMARY_URL_TEMPLATE.format(idioma=idioma, titulo=titulo.replace(" ", "_"))
     respuesta = requests.get(url, headers=HEADERS, timeout=5)
+    logger.info(f"[wikipedia_client] _obtener_retrato -> status_code={respuesta.status_code} "
+                f"título={titulo!r} idioma={idioma}")
 
     if respuesta.status_code != 200:
         return None
 
     data = respuesta.json()
     imagen = data.get("originalimage") or data.get("thumbnail")
-    return imagen.get("source") if imagen else None
+    url_imagen = imagen.get("source") if imagen else None
+    logger.info(f"[wikipedia_client] _obtener_retrato -> imagen encontrada={bool(url_imagen)}")
+    return url_imagen
 
 
-def _obtener_wikidata_id(titulo: str) -> str | None:
+def _obtener_wikidata_id(titulo: str, idioma: str = "es") -> str | None:
     """De un título de Wikipedia obtiene el ID de Wikidata asociado
     (ej. 'Fyodor Dostoevsky' -> 'Q3306'), vía pageprops."""
+    url = WIKIPEDIA_PAGEPROPS_URL_TEMPLATE.format(idioma=idioma)
     params = {
         "action": "query",
         "prop": "pageprops",
         "titles": titulo,
         "format": "json",
     }
-    respuesta = requests.get(WIKIPEDIA_PAGEPROPS_URL, params=params, headers=HEADERS, timeout=5)
+    logger.info(f"[wikipedia_client] _obtener_wikidata_id -> título={titulo!r} idioma={idioma} params={params}")
+
+    respuesta = requests.get(url, params=params, headers=HEADERS, timeout=5)
     respuesta.raise_for_status()
 
     paginas = respuesta.json().get("query", {}).get("pages", {})
     for pagina in paginas.values():
         wikidata_id = pagina.get("pageprops", {}).get("wikibase_item")
         if wikidata_id:
+            logger.info(f"[wikipedia_client] _obtener_wikidata_id -> QID encontrado: {wikidata_id} "
+                        f"para título={titulo!r} idioma={idioma}")
             return wikidata_id
 
+    logger.warning(f"[wikipedia_client] _obtener_wikidata_id -> SIN wikibase_item para título={titulo!r} "
+                    f"idioma={idioma}, páginas recibidas={list(paginas.keys())}")
     return None
 
 
@@ -144,7 +216,11 @@ def _parsear_fecha_wikidata(claim_valor: dict) -> tuple[str | None, int | None]:
 def _obtener_label(qid: str, idioma: str = "en") -> str | None:
     """Resuelve el nombre legible de un ítem de Wikidata a partir de su ID
     (ej. 'Q159' -> 'Russia'). Se usa para el país de ciudadanía (P27) y para
-    la lengua materna (P103), que en el claim vienen solo como ID."""
+    la lengua materna (P103), que en el claim vienen solo como ID.
+
+    Nota: este 'idioma' es el idioma del LABEL solicitado a Wikidata, no
+    tiene relación con el idioma en que se encontró el título de origen
+    (Wikidata es independiente del idioma de la Wikipedia de origen)."""
     params = {
         "action": "wbgetentities",
         "ids": qid,
@@ -157,6 +233,7 @@ def _obtener_label(qid: str, idioma: str = "en") -> str | None:
 
     entidad = respuesta.json().get("entities", {}).get(qid, {})
     label = entidad.get("labels", {}).get(idioma, {}).get("value")
+    logger.info(f"[wikipedia_client] _obtener_label -> qid={qid} idioma={idioma} label={label!r}")
     return label
 
 
@@ -171,7 +248,9 @@ def _obtener_claims(qid: str) -> dict:
     respuesta.raise_for_status()
 
     entidad = respuesta.json().get("entities", {}).get(qid, {})
-    return entidad.get("claims", {})
+    claims = entidad.get("claims", {})
+    logger.info(f"[wikipedia_client] _obtener_claims -> qid={qid} propiedades recibidas={list(claims.keys())}")
+    return claims
 
 
 def _extraer_valor_claim(claims: dict, propiedad: str) -> dict | None:
@@ -186,9 +265,10 @@ def _extraer_valor_claim(claims: dict, propiedad: str) -> dict | None:
 
 def obtener_datos_estructurados(query: str) -> dict:
     """
-    Busca el autor en Wikipedia y trae sus datos estructurados vía Wikidata:
-    fechas de nacimiento/defunción (exactas o aproximadas según precisión),
-    país de ciudadanía, lengua materna, y retrato.
+    Busca el autor en Wikipedia (con fallback es->en, ver
+    _buscar_titulo_con_fallback) y trae sus datos estructurados vía
+    Wikidata: fechas de nacimiento/defunción (exactas o aproximadas según
+    precisión), país de ciudadanía, lengua materna, y retrato.
 
     Devuelve un dict con esta forma (todos los campos pueden ser None si no
     se encontró información):
@@ -226,15 +306,20 @@ def obtener_datos_estructurados(query: str) -> dict:
         "idioma": None,
     }
 
+    logger.info(f"[wikipedia_client] obtener_datos_estructurados -> INICIO query={query!r}")
+
     try:
-        titulo = _buscar_titulo(query)
+        titulo, idioma_encontrado = _buscar_titulo_con_fallback(query)
         if not titulo:
+            logger.warning(f"[wikipedia_client] obtener_datos_estructurados -> sin título, FIN query={query!r}")
             return resultado_vacio
 
-        retrato_url = _obtener_retrato(titulo)
+        retrato_url = _obtener_retrato(titulo, idioma=idioma_encontrado)
 
-        qid = _obtener_wikidata_id(titulo)
+        qid = _obtener_wikidata_id(titulo, idioma=idioma_encontrado)
         if not qid:
+            logger.warning(f"[wikipedia_client] obtener_datos_estructurados -> sin QID para título={titulo!r} "
+                            f"idioma={idioma_encontrado}, FIN query={query!r}")
             return {**resultado_vacio, "retrato_url": retrato_url}
 
         claims = _obtener_claims(qid)
@@ -262,6 +347,12 @@ def obtener_datos_estructurados(query: str) -> dict:
             qid_idioma = valor_idioma.get("id")
             if qid_idioma:
                 idioma = _obtener_label(qid_idioma, idioma="es")
+
+        logger.info(f"[wikipedia_client] obtener_datos_estructurados -> FIN query={query!r} título={titulo!r} "
+                    f"idioma_origen={idioma_encontrado} qid={qid} fecha_nacimiento={fecha_nacimiento} "
+                    f"anio_nacimiento_aprox={anio_nacimiento_aprox} fecha_defuncion={fecha_defuncion} "
+                    f"anio_defuncion_aprox={anio_defuncion_aprox} pais={pais!r} idioma={idioma!r} "
+                    f"retrato={bool(retrato_url)}")
 
         return {
             "retrato_url": retrato_url,

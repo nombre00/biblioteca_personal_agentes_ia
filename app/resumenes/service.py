@@ -53,3 +53,15 @@ def buscar_guardado(db: Session, libro_id: int) -> ResumenLibro | None:
     pensado para el panel de comparación del frontend.
     """
     return repository.buscar_por_libro_id(db, libro_id)
+
+def adoptar(db: Session, libro_id: int, texto: str) -> ResumenLibro:
+    """
+    Sobrescribe (o crea) el resumen guardado con un texto ya generado externamente
+    (vía /probar), sin volver a llamar a Wikipedia ni a Gemini.
+    """
+    return repository.guardar(
+        db,
+        libro_id=libro_id,
+        texto=texto,
+        modelo_usado=settings.gemini_model,
+    )

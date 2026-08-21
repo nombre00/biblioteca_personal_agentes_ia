@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.resumenes import service
-from app.resumenes.schema import ResumenRequest, ResumenResponse
+from app.resumenes.schema import ResumenRequest, ResumenResponse, AdoptarTextoRequest
 from app.shared.auth.jwt_validator import validar_jwt_interno
 from app.shared.database import get_db
 
@@ -25,3 +25,12 @@ def buscar_resumen_guardado(
     uid: str = Depends(validar_jwt_interno),
 ):
     return service.buscar_guardado(db, libro_id)
+
+@router.put("/{libro_id}", response_model=ResumenResponse)
+def adoptar(
+    libro_id: int,
+    datos: AdoptarTextoRequest,
+    db: Session = Depends(get_db),
+    uid: str = Depends(validar_jwt_interno),
+):
+    return service.adoptar(db, libro_id, datos.texto)

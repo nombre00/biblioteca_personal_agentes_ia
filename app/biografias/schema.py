@@ -17,3 +17,6 @@ class BiografiaResponse(BaseModel):
     texto: str
     modelo_usado: str
     fecha_generacion: datetime
+
+class AdoptarTextoRequest(BaseModel):
+    texto: str
