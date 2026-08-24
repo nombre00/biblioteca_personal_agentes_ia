@@ -7,7 +7,7 @@ from app.resumenes.schema import ResumenRequest
 from app.configuracion_prompt import service as configuracion_prompt_service
 from app.shared.config import settings
 from app.shared.llm.gemini_client import gemini_client
-from app.shared.wikipedia_client import obtener_contexto
+from app.shared.wikipedia_client import obtener_contexto_sinopsis
 
 
 
@@ -21,7 +21,7 @@ def obtener_resumen(db: Session, libro_id: int, datos: ResumenRequest) -> Resume
     if existente is not None:
         return existente
 
-    contexto_wikipedia = obtener_contexto(f"{datos.titulo_libro} {datos.nombre_autor}")
+    contexto_wikipedia = obtener_contexto_sinopsis(datos.titulo_libro, datos.nombre_autor)
 
     configuracion = configuracion_prompt_service.obtener_activa_o_default(
         db, tipo_tarea="sinopsis"

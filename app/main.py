@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+import logging
+
 
 from app.shared.database import Base, engine
 
@@ -10,7 +12,10 @@ from app.configuracion_prompt.model import ConfiguracionPrompt, LineaPrompt
 
 from app.router import router_ia
 
+
 app = FastAPI(title="agentes-ia")
+
+logging.basicConfig(level=logging.INFO)
 
 # Crea las tablas que todavía no existan en biblioteca_ia.
 # No altera tablas ya existentes si el modelo cambia después (ver nota en contexto).

@@ -7,7 +7,7 @@ from app.biografias.schema import BiografiaRequest
 from app.configuracion_prompt import service as configuracion_prompt_service
 from app.shared.config import settings
 from app.shared.llm.gemini_client import gemini_client
-from app.shared.wikipedia_client import obtener_contexto
+from app.shared.wikipedia_client import obtener_contexto_biografia
 
 
 def obtener_biografia(db: Session, autor_id: int, datos: BiografiaRequest) -> BiografiaAutor:
@@ -20,7 +20,7 @@ def obtener_biografia(db: Session, autor_id: int, datos: BiografiaRequest) -> Bi
     if existente is not None:
         return existente
 
-    contexto_wikipedia = obtener_contexto(f"{datos.nombre_autor} writer")
+    contexto_wikipedia = obtener_contexto_biografia(datos.nombre_autor)
 
     configuracion = configuracion_prompt_service.obtener_activa_o_default(
         db, tipo_tarea="biografia"
