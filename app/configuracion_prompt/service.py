@@ -13,7 +13,7 @@ from app.configuracion_prompt.schema import (
 from app.biografias.prompt import construir_prompt_biografia
 from app.resumenes.prompt import construir_prompt_resumen
 from app.shared.llm.gemini_client import gemini_client
-from app.shared.wikipedia_client import obtener_contexto
+from app.shared.wikipedia_client import obtener_contexto_biografia, obtener_contexto_sinopsis
 
 
 TIPOS_TAREA_VALIDOS = {"sinopsis", "biografia"}
@@ -134,7 +134,7 @@ def probar(tipo_tarea: str, datos: PruebaPromptRequest) -> PruebaPromptResponse:
                 detail="nombre_autor es obligatorio para probar un preset de biografía.",
             )
 
-        contexto_wikipedia = obtener_contexto(f"{datos.nombre_autor} writer")
+        contexto_wikipedia = obtener_contexto_biografia(datos.nombre_autor)
 
         prompt = construir_prompt_biografia(
             nombre_autor=datos.nombre_autor,
@@ -153,7 +153,7 @@ def probar(tipo_tarea: str, datos: PruebaPromptRequest) -> PruebaPromptResponse:
                 detail="titulo_libro y nombre_autor son obligatorios para probar un preset de sinopsis.",
             )
 
-        contexto_wikipedia = obtener_contexto(f"{datos.titulo_libro} {datos.nombre_autor}")
+        contexto_wikipedia = obtener_contexto_sinopsis(datos.titulo_libro, datos.nombre_autor)
 
         prompt = construir_prompt_resumen(
             titulo_libro=datos.titulo_libro,
