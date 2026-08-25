@@ -534,7 +534,7 @@ def _buscar_candidatos_autor_wikidata(query: str, idioma: str = "es", limite: in
     }
     logger.info(f"[wikipedia_client] _buscar_candidatos_autor_wikidata -> idioma={idioma} query={query!r} params={params}")
 
-    respuesta = requests.get(WIKIDATA_SEARCH_URL, params=params, headers=HEADERS, timeout=5)
+    respuesta = requests.get(WIKIDATA_SEARCH_URL, params=params, headers=HEADERS, timeout=15)
     respuesta.raise_for_status()
 
     resultados = respuesta.json().get("search", [])
@@ -638,11 +638,37 @@ def _buscar_autor_wikidata_con_fallback(nombre_autor: str) -> str | None:
 
 
 def _obtener_obras_p800(qid_autor: str) -> list[str]:
-    """Lee la propiedad P800 (obra notable) del autor. Puede tener cero,
+    """
+    Lee la propiedad P800 (obra notable) del autor. Puede tener cero,
     una, o varias obras listadas -devuelve la lista de QIDs tal cual,
-    sin desambiguar todavía cuál corresponde al libro buscado."""
-    claims = _obtener_claims(qid_autor)
-    lista = claims.get(PROP_OBRA_NOTABLE, [])
+    sin desambiguar todavía cuál corresponde al libro buscado.
+
+    Usa wbgetclaims con property=P800 en vez de _obtener_claims (que
+    trae TODAS las claims del ítem sin filtrar) -necesario porque
+    autores muy documentados en Wikidata (ej. Jenofonte: miles de años
+    de tradición, cientos de propiedades y referencias) generan una
+    respuesta lo bastante pesada como para superar el timeout=5 de
+    _obtener_claims, que fue pensado para perfiles más livianos (caso
+    real: Read timed out contra wikidata.org al intentar traer el
+    ítem completo de Xenophon/Q129772).
+    """
+    params = {
+        "action": "wbgetclaims",
+        "entity": qid_autor,
+        "property": PROP_OBRA_NOTABLE,
+        "format": "json",
+    }
+    logger.info(f"[wikipedia_client] _obtener_obras_p800 -> qid_autor={qid_autor} params={params}")
+
+    try:
+        respuesta = requests.get(WIKIDATA_URL, params=params, headers=HEADERS, timeout=15)
+        respuesta.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(f"[wikipedia_client] _obtener_obras_p800 -> "
+                     f"error consultando wbgetclaims para qid_autor={qid_autor}: {e}")
+        return []
+
+    lista = respuesta.json().get("claims", {}).get(PROP_OBRA_NOTABLE, [])
 
     qids_obras = []
     for claim in lista:
@@ -714,7 +740,7 @@ def _obtener_info_obras(qids_obras: list[str]) -> dict[str, dict]:
         "languages": "es|en",
         "format": "json",
     }
-    respuesta = requests.get(WIKIDATA_URL, params=params, headers=HEADERS, timeout=5)
+    respuesta = requests.get(WIKIDATA_URL, params=params, headers=HEADERS, timeout=15)
     respuesta.raise_for_status()
 
     entidades = respuesta.json().get("entities", {})
@@ -862,10 +888,17 @@ def _obtener_titulo_wikipedia_desde_qid(qid: str) -> tuple[str | None, str | Non
 def _obtener_contexto_sinopsis_via_wikidata(titulo_libro: str, nombre_autor: str) -> str | None:
     """
     Orquesta el flujo completo de resolución vía Wikidata: autor -> QID
-    -> obras conocidas (P800, o P50 inverso si P800 está vacío) ->
-    desambiguar cuál obra corresponde (match directo por label/alias, o
-    Gemini sobre el universo acotado) -> título de Wikipedia de esa
-    obra -> extracto.
+    -> obras conocidas -> desambiguar cuál obra corresponde (match
+    directo por label/alias, o Gemini sobre el universo acotado) ->
+    título de Wikipedia de esa obra -> extracto.
+
+    Las obras conocidas se arman combinando P800 (obra notable) y P50
+    inverso (autor de) SIEMPRE, no en cascada -caso real que motivó
+    este cambio: Jenofonte tiene P800 poblado con 2 obras (Hiero,
+    Cyropaedia), pero "Memorabilia" no está entre ellas; con la
+    lógica anterior (P50 solo si P800 viene vacío) ese caso nunca
+    hubiera llegado a probar P50, que sí puede tener la obra buscada.
+    Se deduplican los QIDs por si una obra aparece en ambas fuentes.
 
     Devuelve None en cualquier punto donde la ruta no tenga resultado
     (silencioso) -el llamador debe entonces recurrir al mecanismo de
@@ -875,16 +908,24 @@ def _obtener_contexto_sinopsis_via_wikidata(titulo_libro: str, nombre_autor: str
     if not qid_autor:
         return None
 
-    qids_obras = _obtener_obras_p800(qid_autor)
-    if not qids_obras:
-        logger.info(f"[wikipedia_client] _obtener_contexto_sinopsis_via_wikidata -> "
-                    f"sin P800 para qid_autor={qid_autor}, probando P50 inverso")
-        qids_obras = _buscar_obras_reverse_p50(qid_autor)
+    qids_p800 = _obtener_obras_p800(qid_autor)
+    qids_p50 = _buscar_obras_reverse_p50(qid_autor)
+
+    # Combinar sin duplicar, preservando el orden (P800 primero, ya que
+    # son las obras marcadas como "notables" -si el match directo
+    # encuentra varias coincidencias en teoría, esto no afecta el
+    # resultado porque _resolver_obra_por_titulo compara contra todas
+    # igual, pero mantiene el log más legible).
+    qids_obras = list(dict.fromkeys(qids_p800 + qids_p50))
 
     if not qids_obras:
         logger.info(f"[wikipedia_client] _obtener_contexto_sinopsis_via_wikidata -> "
                     f"sin obras (P800 ni P50) para qid_autor={qid_autor}")
         return None
+
+    logger.info(f"[wikipedia_client] _obtener_contexto_sinopsis_via_wikidata -> "
+                f"qid_autor={qid_autor} {len(qids_p800)} obra(s) P800 + {len(qids_p50)} obra(s) P50 "
+                f"= {len(qids_obras)} obra(s) combinadas (sin duplicados): {qids_obras}")
 
     info_obras = _obtener_info_obras(qids_obras)
 
