@@ -5,6 +5,7 @@ env/
 
 # Variables de entorno (secretos: JWT, token de GitHub Models, credenciales BD)
 .env
+.env.test
 
 # Cache y bytecode de Python
 __pycache__/

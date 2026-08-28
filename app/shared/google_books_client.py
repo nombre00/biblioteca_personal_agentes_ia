@@ -1,7 +1,7 @@
 import logging
 import requests 
 
-from app.shared.config import settings
+from app.shared.config import settings 
 
 logger = logging.getLogger(__name__)
 
